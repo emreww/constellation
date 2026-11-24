@@ -14,8 +14,46 @@
 (() => {
   try {
     const startUrl = location.origin + location.pathname;
-    const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><rect width="512" height="512" rx="96" fill="#040405"/><circle cx="150" cy="180" r="10" fill="#efe9dc"/><circle cx="340" cy="150" r="8" fill="#efe9dc"/><circle cx="270" cy="310" r="12" fill="#fff8e8"/><circle cx="390" cy="360" r="9" fill="#efe9dc"/><path d="M150 180 L340 150 L270 310 L390 360 M270 310 L150 180" stroke="#efe9dc" stroke-opacity="0.7" stroke-width="4" fill="none"/></svg>`;
-    const iconUrl = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
+
+    function makePngIcon(size) {
+      const c = document.createElement('canvas');
+      c.width = c.height = size;
+      const ctx = c.getContext('2d');
+      const s = size / 512;
+
+      ctx.fillStyle = '#040405';
+      ctx.fillRect(0, 0, size, size);
+
+      const pts = [
+        [150 * s, 180 * s, 10 * s],
+        [340 * s, 150 * s, 8 * s],
+        [270 * s, 310 * s, 12 * s],
+        [390 * s, 360 * s, 9 * s]
+      ];
+
+      ctx.strokeStyle = 'rgba(239,233,220,0.7)';
+      ctx.lineWidth = 4 * s;
+      ctx.beginPath();
+      ctx.moveTo(pts[0][0], pts[0][1]);
+      ctx.lineTo(pts[1][0], pts[1][1]);
+      ctx.lineTo(pts[2][0], pts[2][1]);
+      ctx.lineTo(pts[3][0], pts[3][1]);
+      ctx.moveTo(pts[2][0], pts[2][1]);
+      ctx.lineTo(pts[0][0], pts[0][1]);
+      ctx.stroke();
+
+      for (const [x, y, r] of pts) {
+        ctx.fillStyle = '#fff8e8';
+        ctx.beginPath();
+        ctx.arc(x, y, r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      return c.toDataURL('image/png');
+    }
+
+    const icon192 = makePngIcon(192);
+    const icon512 = makePngIcon(512);
+
     const manifest = {
       name: 'constellation',
       short_name: 'constellation',
@@ -26,19 +64,32 @@
       background_color: '#040405',
       theme_color: '#040405',
       icons: [
-        { src: iconUrl, sizes: '192x192 512x512', type: 'image/svg+xml', purpose: 'any' }
+        { src: icon192, sizes: '192x192', type: 'image/png', purpose: 'any' },
+        { src: icon512, sizes: '512x512', type: 'image/png', purpose: 'any' }
       ]
     };
-    const blob = new Blob([JSON.stringify(manifest)], { type: 'application/manifest+json' });
+
+    const mBlob = new Blob([JSON.stringify(manifest)], { type: 'application/manifest+json' });
     const link = document.createElement('link');
     link.rel = 'manifest';
-    link.href = URL.createObjectURL(blob);
+    link.href = URL.createObjectURL(mBlob);
     document.head.appendChild(link);
 
     const appleIcon = document.createElement('link');
     appleIcon.rel = 'apple-touch-icon';
-    appleIcon.href = iconUrl;
+    appleIcon.href = icon192;
     document.head.appendChild(appleIcon);
+
+    if ('serviceWorker' in navigator) {
+      const swCode = `
+        self.addEventListener('install', e => self.skipWaiting());
+        self.addEventListener('activate', e => e.waitUntil(self.clients.claim()));
+        self.addEventListener('fetch', () => {});
+      `;
+      const swBlob = new Blob([swCode], { type: 'application/javascript' });
+      const swUrl = URL.createObjectURL(swBlob);
+      navigator.serviceWorker.register(swUrl, { scope: './' }).catch(() => {});
+    }
   } catch {}
 })();
 </script>
