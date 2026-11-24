@@ -137,8 +137,8 @@ canvas{position:fixed;inset:0;width:100%;height:100%;display:block}
   font-variant-numeric:tabular-nums
 }
 #metaWrap{
-  position:fixed;bottom:calc(11.5% + env(safe-area-inset-bottom,0px));left:50%;transform:translateX(-50%);
-  max-width:76vw;transition:opacity .6s;
+  position:fixed;bottom:calc(12.2% + env(safe-area-inset-bottom,0px));left:50%;transform:translateX(-50%);
+  max-width:82vw;transition:opacity .6s;
   display:flex;flex-direction:column;align-items:center;gap:11px
 }
 #meta{
@@ -183,28 +183,35 @@ canvas{position:fixed;inset:0;width:100%;height:100%;display:block}
 body.playing #progDot{opacity:1}
 body.zen #clock,body.zen #metaWrap{opacity:0;pointer-events:none}
 #ui{
-  position:fixed;bottom:calc(4.2% + env(safe-area-inset-bottom,0px));left:50%;
-  display:flex;gap:12px;opacity:0;transition:opacity .5s,transform .5s;
-  transform:translate(-50%,6px)
+  position:fixed;bottom:calc(3.8% + env(safe-area-inset-bottom,0px));left:50%;
+  display:flex;align-items:center;gap:10px;opacity:0;transition:opacity .5s,transform .5s;
+  transform:translate(-50%,6px);flex-wrap:wrap;justify-content:center;max-width:94vw
 }
 body:not(.idle) #ui{opacity:1;transform:translate(-50%,0)}
 #ui button{
-  width:44px;height:44px;border-radius:50%;
+  width:42px;height:42px;border-radius:50%;
   border:1px solid rgba(239,233,220,.26);
-  background:rgba(12,13,18,.35);color:var(--ink);cursor:pointer;
+  background:rgba(12,13,18,.42);color:var(--ink);cursor:pointer;
   display:grid;place-items:center;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
   transition:background .25s,border-color .25s,transform .2s,box-shadow .25s
 }
+#ui button.mini{
+  width:34px;height:34px;font-size:13px;letter-spacing:.02em;
+  font-family:'Cormorant Garamond',Georgia,serif;opacity:.82
+}
 #ui button:hover{
   background:rgba(255,248,230,.12);border-color:rgba(239,233,220,.65);
-  box-shadow:0 0 20px rgba(255,244,214,.18)
+  box-shadow:0 0 20px rgba(255,244,214,.18);opacity:1
 }
 #ui button:active{transform:scale(.92)}
 #ui button:focus-visible{outline:2px solid var(--ink);outline-offset:3px}
-#ui svg{width:18px;height:18px;fill:currentColor}
+#ui svg{width:17px;height:17px;fill:currentColor}
 body.playing #pp{
   border-color:rgba(255,248,230,.48);
   box-shadow:0 0 24px rgba(255,244,214,.14)
+}
+@media (pointer:coarse){
+  body.idle #ui{opacity:.78;transform:translate(-50%,0)}
 }
 @media (prefers-reduced-motion:reduce),(pointer:coarse){#grain{animation:none}}
 </style>
@@ -228,9 +235,13 @@ body.playing #pp{
   </div>
 </div>
 <div id="ui">
+  <button id="syncMinus" class="mini" aria-label="Sözleri geri al (-100ms)" title="Sözleri 100ms geri al (-)">-0.1s</button>
   <button id="prev" aria-label="Önceki" title="Önceki (←)"><svg viewBox="0 0 24 24"><path d="M6 5h2v14H6zM20 5v14L9 12z"/></svg></button>
   <button id="pp" aria-label="Oynat / duraklat" title="Oynat / Duraklat (Boşluk)"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></button>
   <button id="next" aria-label="Sonraki" title="Sonraki (→)"><svg viewBox="0 0 24 24"><path d="M16 5h2v14h-2zM4 5v14l11-7z"/></svg></button>
+  <button id="syncPlus" class="mini" aria-label="Sözleri ileri al (+100ms)" title="Sözleri 100ms ileri al (+)">+0.1s</button>
+  <button id="syncReset" class="mini" aria-label="Senkronu sıfırla" title="Senkronu varsayılana döndür (R)">0</button>
+  <button id="fsBtn" aria-label="Tam ekran" title="Tam Ekran (F)"><svg viewBox="0 0 24 24"><path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/></svg></button>
 </div>
 
 <script>
@@ -339,6 +350,32 @@ const pos = () => rawPos() + offsetMs;
 
 let note = '', noteUntil = 0, baseMeta = '';
 function say(m, ms = 3000) { note = m; noteUntil = performance.now() + ms; }
+
+function adjustSync(deltaMs) {
+  offsetMs += deltaMs;
+  ls.set('lyricOffset', String(offsetMs));
+  say(`Söz senkronu: ${offsetMs > 0 ? '+' : ''}${offsetMs} ms`, 1800);
+}
+
+function resetSync() {
+  offsetMs = DEFAULT_OFFSET;
+  ls.set('lyricOffset', String(DEFAULT_OFFSET));
+  say(`Söz senkronu varsayılana döndü (+${DEFAULT_OFFSET} ms)`, 1800);
+}
+
+async function toggleFullscreen() {
+  try {
+    if (document.fullscreenElement) {
+      await document.exitFullscreen();
+    } else if (document.documentElement.requestFullscreen) {
+      await document.documentElement.requestFullscreen();
+    } else {
+      say('Tam ekran için Ana Ekrana Ekle kullanabilirsin', 2500);
+    }
+  } catch {
+    say('Tam ekran için Ana Ekrana Ekle kullanabilirsin', 2500);
+  }
+}
 
 /* =========================================================
    Albüm rengi (accent)
@@ -686,6 +723,10 @@ $('progBar').addEventListener('pointerdown', e => {
 $('pp').onclick = () => ctl('toggle');
 $('next').onclick = () => ctl('next');
 $('prev').onclick = () => ctl('prev');
+$('syncMinus').onclick = () => adjustSync(-100);
+$('syncPlus').onclick = () => adjustSync(100);
+$('syncReset').onclick = resetSync;
+$('fsBtn').onclick = toggleFullscreen;
 
 addEventListener('keydown', e => {
   const onBar = document.activeElement === $('progBar');
@@ -703,16 +744,13 @@ addEventListener('keydown', e => {
   if (onBar && e.key === 'Home') { e.preventDefault(); ctl('seek', 0); return; }
   if (onBar && e.key === 'End') { e.preventDefault(); ctl('seek', S.dur); return; }
   if (e.key === 'f' || e.key === 'F') {
-    document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen();
+    toggleFullscreen();
   } else if (e.key === '+' || e.key === '=') {
-    offsetMs += 100; ls.set('lyricOffset', String(offsetMs));
-    say(`Söz senkronu: ${offsetMs > 0 ? '+' : ''}${offsetMs} ms`, 1800);
+    adjustSync(100);
   } else if (e.key === '-' || e.key === '_') {
-    offsetMs -= 100; ls.set('lyricOffset', String(offsetMs));
-    say(`Söz senkronu: ${offsetMs > 0 ? '+' : ''}${offsetMs} ms`, 1800);
+    adjustSync(-100);
   } else if (e.key === 'r' || e.key === 'R') {
-    offsetMs = DEFAULT_OFFSET; ls.set('lyricOffset', String(DEFAULT_OFFSET));
-    say(`Söz senkronu varsayılana döndü (+${DEFAULT_OFFSET} ms)`, 1800);
+    resetSync();
   } else if (e.key === 'c' || e.key === 'C') {
     showMap = !showMap; ls.set('showMap', showMap ? '1' : '0');
     say(showMap ? 'Gökyüzü haritası açık' : 'Gökyüzü haritası kapalı', 1800);
@@ -804,7 +842,7 @@ function tick() {
 tick(); setInterval(tick, 1000);
 
 /* =========================================================
-   Canvas
+   Canvas & Senkron Ritim Motoru
    ========================================================= */
 const cv = $('c'), g = cv.getContext('2d');
 let W, H, D, U;
@@ -826,6 +864,17 @@ const rng = seed => () => {
 };
 const clamp = (v, a = 0, b = 1) => Math.min(b, Math.max(a, v));
 const ease = x => 1 - Math.pow(1 - x, 3);
+
+function lineTempoFactor(lineIdx) {
+  const l = S.lines[lineIdx];
+  if (!l) return 1;
+  const nx = S.lines[lineIdx + 1];
+  const rawDur = nx ? (nx.t - l.t) : 4500;
+  const dur = Math.max(900, Math.min(12000, rawDur));
+  return clamp(3600 / dur, 0.65, 1.65);
+}
+
+let tempoSmooth = 1;
 
 let BG = [];
 let skySeed = 7;
@@ -921,7 +970,8 @@ let starDrift = 0, lastNow = performance.now();
 function drawBG(now) {
   const dt = Math.min(50, Math.max(0, now - lastNow));
   lastNow = now;
-  starDrift += dt * (S.playing ? 0.0045 : 0.0012);
+  const driftRate = S.playing ? (0.0032 + tempoSmooth * 0.0014) : 0.0012;
+  starDrift += dt * driftRate;
 
   if (now > nextShootAt) {
     if (S.playing) spawnShootingStar(false);
@@ -975,18 +1025,25 @@ function lineAlpha(i, t) {
 function drawLine(i, t, alpha, now) {
   const line = S.lines[i]; if (!line) return;
   const nx = S.lines[i + 1];
-  const dur = Math.max(1200, (nx ? nx.t : line.t + 4000) - line.t);
+  const dur = Math.max(900, (nx ? nx.t : line.t + 4200) - line.t);
+  const tf = lineTempoFactor(i);
   const nodes = layout(i, line), n = nodes.length;
-  const step = Math.min(dur * .7, n * 520) / n;
 
-  const P = nodes.map((nd, k) => ({
-    x: nd.x * W + mx * 20 * D,
-    y: nd.y * H + my * 14 * D,
-    p: ease(clamp((t - line.t - k * step) / 650)),
-    w: nd.w,
-    alignRight: nd.alignRight,
-    tier: nd.tier
-  }));
+  const span = Math.min(dur * 0.78, Math.max(450, n * (520 / tf)));
+  const step = n > 1 ? span / n : 0;
+  const revealMs = clamp(650 / Math.sqrt(tf), 340, 850);
+
+  const P = nodes.map((nd, k) => {
+    const startAt = line.t + k * step;
+    return {
+      x: nd.x * W + mx * 20 * D,
+      y: nd.y * H + my * 14 * D,
+      p: ease(clamp((t - startAt) / revealMs)),
+      w: nd.w,
+      alignRight: nd.alignRight,
+      tier: nd.tier
+    };
+  });
 
   if (P.some(q => q.p > 0.25)) recordArchive(i, line);
 
@@ -1060,7 +1117,7 @@ function drawLine(i, t, alpha, now) {
     g.lineWidth = 1.2 * D;
     g.save();
     g.translate(q.x, q.y);
-    g.rotate(now * .0004);
+    g.rotate(now * .0004 * tf);
     g.setLineDash([6 * U, 5 * U]);
     g.beginPath();
     g.arc(0, 0, 24 * U, 0, 6.283);
@@ -1094,8 +1151,9 @@ function drawFrame(now) {
   g.arcTo(x0, y0, x0 + r, y0, r);
   g.closePath();
 
-  const pulseRate = S.playing ? .0012 : .0006;
-  const pulse = .85 + .15 * Math.sin(now * pulseRate);
+  const pulseRate = S.playing ? (.0008 + tempoSmooth * 0.0005) : .0006;
+  const pulseAmp = S.playing ? (0.12 + clamp((tempoSmooth - 0.65) * 0.08, 0, 0.08)) : 0.15;
+  const pulse = (1 - pulseAmp) + pulseAmp * Math.sin(now * pulseRate);
 
   if (accent) {
     const mix = 0.4;
@@ -1141,6 +1199,10 @@ function frame(now) {
     if (S.lines[k].t <= t) i = k;
     else break;
   }
+
+  const targetTempo = (S.playing && i >= 0) ? lineTempoFactor(i) : 1;
+  tempoSmooth += (targetTempo - tempoSmooth) * 0.04;
+
   for (const k of [i - 1, i]) {
     if (k < 0) continue;
     const a = lineAlpha(k, t);
