@@ -1,0 +1,1118 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#040405">
+<title>constellation</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet">
+<style>
+:root{--ink:#efe9dc}
+*{box-sizing:border-box;user-select:none;-webkit-user-select:none}
+html,body{
+  margin:0;height:100%;overflow:hidden;color:var(--ink);
+  font-family:'Cormorant Garamond',Georgia,serif;
+  background:radial-gradient(ellipse 80% 60% at 50% 55%,#0c0d12 0%,#040405 62%,#000 100%)
+}
+body.idle{cursor:none}
+canvas{position:fixed;inset:0;width:100%;height:100%;display:block}
+#vig{
+  position:fixed;inset:0;pointer-events:none;
+  background:radial-gradient(ellipse at center,transparent 45%,rgba(0,0,0,.78) 100%)
+}
+#grain{
+  position:fixed;left:-50%;top:-50%;width:200%;height:200%;pointer-events:none;
+  opacity:.15;mix-blend-mode:screen;will-change:transform;
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='240' height='240'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 1.4 0 0 0 -.45'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+  animation:grain .7s steps(1) infinite
+}
+@keyframes grain{
+  0%{transform:translate(0,0)}
+  20%{transform:translate(-4%,3%)}
+  40%{transform:translate(3%,-5%)}
+  60%{transform:translate(-2%,5%)}
+  80%{transform:translate(5%,2%)}
+}
+#clock{
+  position:fixed;top:calc(11.5% + env(safe-area-inset-top,0px));left:50%;transform:translateX(-50%);
+  text-align:center;pointer-events:none;transition:opacity .6s;
+  text-shadow:0 0 36px rgba(255,244,220,.28)
+}
+#date{
+  font-size:clamp(11px,1.05vw,16px);
+  letter-spacing:.14em;opacity:.55;text-transform:lowercase;
+  transition:opacity .4s
+}
+#time{
+  font-size:clamp(52px,6.2vw,112px);
+  line-height:1;font-weight:400;
+  letter-spacing:-.015em;
+  font-variant-numeric:tabular-nums
+}
+#metaWrap{
+  position:fixed;bottom:calc(11.5% + env(safe-area-inset-bottom,0px));left:50%;transform:translateX(-50%);
+  max-width:76vw;transition:opacity .6s;
+  display:flex;flex-direction:column;align-items:center;gap:11px
+}
+#meta{
+  font-style:italic;font-size:clamp(13px,1.2vw,18px);opacity:.58;
+  text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  max-width:100%;pointer-events:none;text-shadow:0 0 20px rgba(0,0,0,.9)
+}
+#progRow{
+  display:flex;align-items:center;gap:12px;
+  font-size:11px;letter-spacing:.08em;opacity:.38;
+  font-variant-numeric:tabular-nums;
+  transition:opacity .3s ease
+}
+#progRow:hover{opacity:.72}
+#tElapsed,#tLeft{min-width:30px;line-height:1}
+#tElapsed{text-align:right}
+#tLeft{text-align:left}
+#progBar{
+  width:clamp(120px,17vw,240px);height:10px;display:flex;align-items:center;
+  cursor:pointer;position:relative;border-radius:4px;touch-action:none
+}
+#progBar:focus-visible{outline:2px solid var(--ink);outline-offset:6px}
+#progTrack{
+  width:100%;height:1px;background:rgba(239,233,220,.14);
+  overflow:hidden;border-radius:1px;transition:height .2s ease
+}
+#progBar:hover #progTrack,#progBar:focus-visible #progTrack{height:2px}
+#progFill{
+  height:100%;width:0%;background:rgba(255,246,222,.6);
+  box-shadow:0 0 8px rgba(255,244,214,.55);transition:width .2s linear
+}
+#progDot{
+  position:absolute;top:50%;left:0%;
+  width:6px;height:6px;border-radius:50%;
+  background:rgb(var(--accent,255,246,222));
+  box-shadow:0 0 10px rgba(var(--accent,255,244,214),.75);
+  transform:translate(-50%,-50%);
+  opacity:0;transition:opacity .25s ease;
+  pointer-events:none
+}
+#progBar:hover #progDot,
+body.playing #progDot{opacity:1}
+body.zen #clock,body.zen #metaWrap{opacity:0;pointer-events:none}
+#ui{
+  position:fixed;bottom:calc(4.2% + env(safe-area-inset-bottom,0px));left:50%;
+  display:flex;gap:12px;opacity:0;transition:opacity .5s,transform .5s;
+  transform:translate(-50%,6px)
+}
+body:not(.idle) #ui{opacity:1;transform:translate(-50%,0)}
+#ui button{
+  width:44px;height:44px;border-radius:50%;
+  border:1px solid rgba(239,233,220,.26);
+  background:rgba(12,13,18,.35);color:var(--ink);cursor:pointer;
+  display:grid;place-items:center;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+  transition:background .25s,border-color .25s,transform .2s,box-shadow .25s
+}
+#ui button:hover{
+  background:rgba(255,248,230,.12);border-color:rgba(239,233,220,.65);
+  box-shadow:0 0 20px rgba(255,244,214,.18)
+}
+#ui button:active{transform:scale(.92)}
+#ui button:focus-visible{outline:2px solid var(--ink);outline-offset:3px}
+#ui svg{width:18px;height:18px;fill:currentColor}
+body.playing #pp{
+  border-color:rgba(255,248,230,.48);
+  box-shadow:0 0 24px rgba(255,244,214,.14)
+}
+@media (prefers-reduced-motion:reduce),(pointer:coarse){#grain{animation:none}}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="vig"></div>
+<div id="grain"></div>
+<div id="clock" aria-hidden="true"><div id="date"></div><div id="time"></div></div>
+<div id="metaWrap">
+  <div id="meta" aria-live="polite" aria-atomic="true"></div>
+  <div id="progRow">
+    <span id="tElapsed">0:00</span>
+    <div id="progBar" role="slider" tabindex="0" aria-label="Şarkı ilerlemesi"
+         aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"
+         title="İlerlemek için tıkla veya sürükle">
+      <div id="progTrack"><div id="progFill"></div></div>
+      <div id="progDot"></div>
+    </div>
+    <span id="tLeft">-0:00</span>
+  </div>
+</div>
+<div id="ui">
+  <button id="prev" aria-label="Önceki" title="Önceki (←)"><svg viewBox="0 0 24 24"><path d="M6 5h2v14H6zM20 5v14L9 12z"/></svg></button>
+  <button id="pp" aria-label="Oynat / duraklat" title="Oynat / Duraklat (Boşluk)"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></button>
+  <button id="next" aria-label="Sonraki" title="Sonraki (→)"><svg viewBox="0 0 24 24"><path d="M16 5h2v14h-2zM4 5v14l11-7z"/></svg></button>
+</div>
+
+<script>
+/* =========================================================
+   Yardımcılar
+   ========================================================= */
+const $ = id => document.getElementById(id);
+const ls = {
+  get(k) { try { return localStorage.getItem(k); } catch { return null; } },
+  set(k, v) { try { localStorage.setItem(k, v); } catch {} },
+  del(k) { try { localStorage.removeItem(k); } catch {} },
+  keys() { try { return Object.keys(localStorage); } catch { return []; } }
+};
+
+const CLIENT_ID = '5a940233d413441f93cd756d90c2c3a3';
+const REDIRECT = location.origin + location.pathname;
+const SCOPE = 'user-read-currently-playing user-read-playback-state user-modify-playback-state';
+const DEFAULT_OFFSET = 250;
+
+let offsetMs = ls.get('lyricOffset');
+offsetMs = offsetMs == null ? DEFAULT_OFFSET : Number(offsetMs);
+if (!Number.isFinite(offsetMs)) offsetMs = DEFAULT_OFFSET;
+let showMap = ls.get('showMap') !== '0';
+
+if (ls.get('scope') !== SCOPE) ['t', 'exp', 'rt', 'v'].forEach(k => ls.del(k));
+
+/* =========================================================
+   Spotify Auth (PKCE)
+   ========================================================= */
+const b64 = b => btoa(String.fromCharCode(...new Uint8Array(b)))
+  .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+
+async function login() {
+  const v = b64(crypto.getRandomValues(new Uint8Array(32)));
+  ls.set('v', v); ls.set('scope', SCOPE);
+  const ch = b64(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(v)));
+  location = 'https://accounts.spotify.com/authorize?' + new URLSearchParams({
+    client_id: CLIENT_ID, response_type: 'code', redirect_uri: REDIRECT,
+    scope: SCOPE, code_challenge_method: 'S256', code_challenge: ch
+  });
+  return null;
+}
+
+async function tokenReq(params) {
+  const r = await fetch('https://accounts.spotify.com/api/token', {
+    method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({ client_id: CLIENT_ID, ...params })
+  });
+  const j = await r.json().catch(() => ({}));
+  if (!j.access_token) throw new Error('auth');
+  ls.set('t', j.access_token);
+  ls.set('exp', String(Date.now() + j.expires_in * 1000 - 60000));
+  if (j.refresh_token) ls.set('rt', j.refresh_token);
+}
+
+let refreshPromise = null;
+async function getToken() {
+  const q = new URLSearchParams(location.search);
+  if (q.get('error')) {
+    history.replaceState({}, '', REDIRECT);
+    say('Giriş iptal edildi', 5000);
+    return null;
+  }
+  const code = q.get('code');
+  if (code) {
+    try {
+      await tokenReq({ grant_type: 'authorization_code', code, redirect_uri: REDIRECT, code_verifier: ls.get('v') || '' });
+    } catch (e) {
+      console.error('auth', e);
+      ls.del('v');
+      return login();
+    }
+    ls.del('v');
+    history.replaceState({}, '', REDIRECT);
+  } else if (Date.now() > (+ls.get('exp') || 0)) {
+    if (!ls.get('rt')) return login();
+    if (!refreshPromise) {
+      refreshPromise = tokenReq({ grant_type: 'refresh_token', refresh_token: ls.get('rt') })
+        .catch(err => { console.error('refresh', err); return login(); })
+        .finally(() => { refreshPromise = null; });
+    }
+    await refreshPromise;
+  }
+  return ls.get('t');
+}
+
+async function api(path, method = 'GET') {
+  const tk = await getToken();
+  if (!tk) return null;
+  try {
+    return await fetch('https://api.spotify.com/v1/me/player' + path, {
+      method, headers: { Authorization: 'Bearer ' + tk }
+    });
+  } catch (e) {
+    console.error('api', e);
+    return null;
+  }
+}
+
+/* =========================================================
+   Durum
+   ========================================================= */
+const S = { id: null, lines: [], prog: 0, dur: 0, at: 0, playing: false, lock: 0 };
+const rawPos = () => S.prog + (S.playing ? performance.now() - S.at : 0);
+const pos = () => rawPos() + offsetMs;
+
+let note = '', noteUntil = 0, baseMeta = '';
+function say(m, ms = 3000) { note = m; noteUntil = performance.now() + ms; }
+
+/* =========================================================
+   Albüm rengi (accent)
+   ========================================================= */
+let accent = null;
+
+function applyAccent(acc) {
+  accent = acc;
+  try {
+    if (!acc) { document.documentElement.style.removeProperty('--accent'); return; }
+    const br = c => Math.max(180, Math.min(255, Math.round(c * 0.6 + 100)));
+    document.documentElement.style.setProperty('--accent', `${br(acc.r)},${br(acc.g)},${br(acc.b)}`);
+  } catch {}
+}
+
+async function extractAccent(url) {
+  if (!url) return null;
+  try {
+    const img = await new Promise((res, rej) => {
+      const i = new Image();
+      i.crossOrigin = 'anonymous';
+      i.onload = () => res(i);
+      i.onerror = rej;
+      i.src = url;
+      setTimeout(() => rej(new Error('timeout')), 4000);
+    });
+    const c = document.createElement('canvas');
+    c.width = c.height = 16;
+    const ctx = c.getContext('2d', { willReadFrequently: true });
+    ctx.drawImage(img, 0, 0, 16, 16);
+    const d = ctx.getImageData(0, 0, 16, 16).data;
+    let r = 0, g = 0, b = 0, n = 0;
+    for (let i = 0; i < d.length; i += 4) {
+      const s = d[i] + d[i + 1] + d[i + 2];
+      if (s > 90 && s < 650) { r += d[i]; g += d[i + 1]; b += d[i + 2]; n++; }
+    }
+    if (!n) return null;
+    return { r: Math.round(r / n), g: Math.round(g / n), b: Math.round(b / n) };
+  } catch { return null; }
+}
+
+/* =========================================================
+   Sözler
+   ========================================================= */
+function parseLRC(txt) {
+  const out = [];
+  for (const raw of txt.split('\n')) {
+    const stamps = [...raw.matchAll(/\[(\d+):(\d+(?:\.\d+)?)\]/g)];
+    if (!stamps.length) continue;
+    const clean = raw.replace(/\[[^\]]*\]/g, '').replace(/<[^>]+>/g, '').trim();
+    if (!clean) continue;
+    const w = clean.split(/\s+/);
+    for (const m of stamps) out.push({ t: (+m[1]) * 60000 + parseFloat(m[2]) * 1000, w });
+  }
+  return out.sort((a, b) => a.t - b.t);
+}
+
+function fetchT(url, ms = 8000) {
+  const c = new AbortController();
+  const id = setTimeout(() => c.abort(), ms);
+  return fetch(url, { signal: c.signal }).finally(() => clearTimeout(id));
+}
+
+function getCachedLyrics(id) {
+  try {
+    const raw = ls.get('lyr:' + id);
+    if (!raw) return null;
+    const arr = JSON.parse(raw);
+    return Array.isArray(arr) && arr.length ? arr : null;
+  } catch { return null; }
+}
+function setCachedLyrics(id, lines) {
+  try {
+    ls.set('lyr:' + id, JSON.stringify(lines));
+    const keys = ls.keys().filter(k => k.startsWith('lyr:'));
+    if (keys.length > 60) keys.slice(0, keys.length - 60).forEach(k => ls.del(k));
+  } catch {}
+}
+
+async function fetchLyrics(item) {
+  const a = item.artists?.[0]?.name;
+  const n = item.name;
+  if (!a || !n) return [];
+  try {
+    let r = await fetchT('https://lrclib.net/api/get?' + new URLSearchParams({
+      artist_name: a, track_name: n, duration: Math.round((item.duration_ms || 0) / 1000)
+    }));
+    if (r.ok) {
+      const j = await r.json().catch(() => ({}));
+      if (j.syncedLyrics) return parseLRC(j.syncedLyrics);
+    }
+    r = await fetchT('https://lrclib.net/api/search?' + new URLSearchParams({ q: n + ' ' + a }));
+    if (r.ok) {
+      const j = await r.json().catch(() => []);
+      const h = Array.isArray(j) ? j.find(x => x.syncedLyrics) : null;
+      if (h) return parseLRC(h.syncedLyrics);
+    }
+  } catch (e) { console.error('lyrics', e); }
+  return [];
+}
+
+/* =========================================================
+   Çoklu sekme liderlik
+   ========================================================= */
+let bc = null;
+try { if ('BroadcastChannel' in window) bc = new BroadcastChannel('constellation-v1'); } catch {}
+const canElect = ('locks' in navigator) && !!bc;
+let isLeader = !canElect;
+
+function broadcastState() {
+  if (!bc || !isLeader) return;
+  try {
+    bc.postMessage({
+      type: 'state',
+      id: S.id, prog: rawPos(), dur: S.dur, playing: S.playing,
+      lines: S.lines, baseMeta
+    });
+  } catch {}
+}
+
+function applyRemoteState(m) {
+  if (performance.now() < S.lock) return;
+  const sameTrack = S.id === m.id;
+  S.id = m.id;
+  S.prog = m.prog || 0;
+  S.dur = m.dur || 0;
+  S.playing = !!m.playing;
+  S.at = performance.now();
+  if (!sameTrack) {
+    S.lines = Array.isArray(m.lines) ? m.lines : [];
+    if (m.baseMeta) baseMeta = m.baseMeta;
+    cache.clear();
+    archiveStars.length = 0;
+    recordedLines.clear();
+    if (S.id) skySeed = [...S.id].reduce((a, c) => (a * 31 + c.charCodeAt(0)) | 0, 7);
+    rebuildBG();
+    spawnShootingStar(true);
+    if (baseMeta) $('meta').textContent = baseMeta;
+  }
+}
+
+if (bc) {
+  bc.onmessage = (e) => {
+    try {
+      const m = e.data;
+      if (m.type === 'hello' && isLeader) { broadcastState(); return; }
+      if (m.type === 'state' && !isLeader) { applyRemoteState(m); return; }
+    } catch (err) { console.error('bc', err); }
+  };
+}
+
+async function electLeader() {
+  if (!canElect) return;
+  await new Promise((resolve) => {
+    navigator.locks.request('constellation-leader', async () => {
+      const wasLeader = isLeader;
+      isLeader = true;
+      resolve();
+      if (!wasLeader) setTimeout(poll, 100);
+      await new Promise(() => {});
+    }).catch(() => { isLeader = true; resolve(); });
+  });
+}
+
+/* =========================================================
+   Polling
+   ========================================================= */
+let polling = false;
+
+async function onNewTrack(it) {
+  S.id = it.id;
+  S.lines = [];
+  cache.clear();
+  archiveStars.length = 0;
+  recordedLines.clear();
+  skySeed = [...it.id].reduce((a, c) => (a * 31 + c.charCodeAt(0)) | 0, 7);
+  rebuildBG();
+  spawnShootingStar(true);
+
+  // Accent reset + fetch
+  applyAccent(null);
+  const coverUrl = it.album?.images?.[0]?.url || it.show?.images?.[0]?.url;
+  if (coverUrl) {
+    const wantId = it.id;
+    extractAccent(coverUrl).then(acc => {
+      if (S.id === wantId) applyAccent(acc);
+    });
+  }
+
+  const artists = (it.artists ?? []).map(a => a.name).join(', ');
+  const subtitle = artists || it.show?.name || '';
+  baseMeta = subtitle ? `${it.name} — ${subtitle}` : (it.name || 'Çalıyor…');
+  $('meta').textContent = baseMeta;
+  document.title = '♪ ' + (subtitle ? `${it.name} — ${subtitle}` : (it.name || 'constellation'));
+
+  updateMediaSession(it);
+
+  const id = it.id;
+  let L = getCachedLyrics(id);
+  if (!L && it.type === 'track') {
+    L = await fetchLyrics(it);
+    if (L && L.length) setCachedLyrics(id, L);
+  }
+  if (S.id === id) {
+    S.lines = L || [];
+    if (!S.lines.length && it.type === 'track') {
+      say('Bu şarkı için senkron söz bulunamadı', 5000);
+    }
+  }
+}
+
+async function doPoll() {
+  let r;
+  try { r = await api('/currently-playing'); }
+  catch (e) { console.error('poll fetch', e); return; }
+  if (!r) return;
+
+  if (r.status === 401) {
+    ['t', 'exp', 'rt'].forEach(k => ls.del(k));
+    return login();
+  }
+  if (r.status === 429) {
+    const wait = +r.headers.get('Retry-After') || 5;
+    say(`Spotify limiti — ${wait}s bekleniyor`, wait * 1000);
+    await new Promise(res => setTimeout(res, wait * 1000));
+    return;
+  }
+  if (performance.now() < S.lock) return;
+
+  if (r.status === 204) {
+    S.playing = false;
+    S.at = performance.now();
+    if (!baseMeta) {
+      baseMeta = 'Spotify’da bir parça başlat...';
+      $('meta').textContent = baseMeta;
+    }
+    broadcastState();
+    return;
+  }
+  if (r.status !== 200) {
+    S.prog = rawPos(); S.at = performance.now(); S.playing = false;
+    broadcastState();
+    return;
+  }
+
+  let d;
+  try { d = await r.json(); } catch { return; }
+  if (!d || !d.item) return;
+
+  const it = d.item;
+  S.prog = d.progress_ms ?? 0;
+  S.dur = it.duration_ms || 0;
+  S.at = performance.now();
+  S.playing = !!d.is_playing;
+
+  if (it.id !== S.id) {
+    await onNewTrack(it);
+  }
+  broadcastState();
+}
+
+async function poll() {
+  if (!isLeader || polling) return;
+  polling = true;
+  try { await doPoll(); }
+  catch (e) { console.error('poll', e); }
+  finally { polling = false; }
+}
+
+/* =========================================================
+   Kontroller
+   ========================================================= */
+function problem(r) {
+  if (!r) return;
+  if (r.status === 403) say('Kontrol için Spotify Premium gerekiyor');
+  else if (r.status === 404) say('Aktif cihaz yok: Spotify’ı bir yerde aç');
+  else if (r.status === 429) say('Spotify limiti — biraz bekle', 3000);
+}
+
+async function ctl(a, seekMs = 0) {
+  try {
+    S.lock = performance.now() + 1500;
+    if (a === 'toggle') {
+      const was = S.playing;
+      S.prog = rawPos(); S.at = performance.now(); S.playing = !was;
+      problem(await api(was ? '/pause' : '/play', 'PUT'));
+    } else if (a === 'seek') {
+      S.prog = seekMs; S.at = performance.now();
+      problem(await api('/seek?position_ms=' + Math.round(seekMs), 'PUT'));
+    } else {
+      problem(await api(a === 'next' ? '/next' : '/previous', 'POST'));
+      S.lock = 0;
+      setTimeout(poll, 600);
+    }
+    broadcastState();
+  } catch (e) {
+    console.error('ctl', e);
+    say('Bağlantı hatası, tekrar deneniyor…', 3000);
+    setTimeout(poll, 1500);
+  }
+}
+
+const fmtTime = ms => {
+  ms = Math.max(0, Math.floor(ms / 1000));
+  const m = Math.floor(ms / 60);
+  const s = ms % 60;
+  return `${m}:${String(s).padStart(2, '0')}`;
+};
+
+/* Sürükle-bırak seek */
+let dragging = false;
+let dragPos = null;
+
+function dragUpdate(e) {
+  if (!S.dur) return;
+  const rect = $('progBar').getBoundingClientRect();
+  const ratio = Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width));
+  dragPos = ratio * S.dur;
+  $('progFill').style.width = (ratio * 100).toFixed(1) + '%';
+  $('progDot').style.left = (ratio * 100).toFixed(1) + '%';
+  $('tElapsed').textContent = fmtTime(dragPos);
+  $('tLeft').textContent = '-' + fmtTime(S.dur - dragPos);
+}
+
+$('progBar').addEventListener('pointerdown', e => {
+  if (!S.dur) return;
+  e.preventDefault();
+  dragging = true;
+  dragUpdate(e);
+  const move = ev => { if (dragging) dragUpdate(ev); };
+  const up = ev => {
+    dragging = false;
+    removeEventListener('pointermove', move);
+    removeEventListener('pointerup', up);
+    removeEventListener('pointercancel', up);
+    const rect = $('progBar').getBoundingClientRect();
+    const ratio = Math.min(1, Math.max(0, (ev.clientX - rect.left) / rect.width));
+    const newPos = ratio * S.dur;
+    dragPos = null;
+    ctl('seek', newPos);
+  };
+  addEventListener('pointermove', move);
+  addEventListener('pointerup', up);
+  addEventListener('pointercancel', up);
+});
+
+$('pp').onclick = () => ctl('toggle');
+$('next').onclick = () => ctl('next');
+$('prev').onclick = () => ctl('prev');
+
+addEventListener('keydown', e => {
+  const onBar = document.activeElement === $('progBar');
+  if (e.code === 'Space') { e.preventDefault(); ctl('toggle'); return; }
+  if (e.code === 'ArrowRight') {
+    if (onBar) { e.preventDefault(); ctl('seek', Math.min(S.dur || 0, rawPos() + 5000)); }
+    else ctl('next');
+    return;
+  }
+  if (e.code === 'ArrowLeft') {
+    if (onBar) { e.preventDefault(); ctl('seek', Math.max(0, rawPos() - 5000)); }
+    else ctl('prev');
+    return;
+  }
+  if (onBar && e.key === 'Home') { e.preventDefault(); ctl('seek', 0); return; }
+  if (onBar && e.key === 'End') { e.preventDefault(); ctl('seek', S.dur); return; }
+  if (e.key === 'f' || e.key === 'F') {
+    document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen();
+  } else if (e.key === '+' || e.key === '=') {
+    offsetMs += 100; ls.set('lyricOffset', String(offsetMs));
+    say(`Söz senkronu: ${offsetMs > 0 ? '+' : ''}${offsetMs} ms`, 1800);
+  } else if (e.key === '-' || e.key === '_') {
+    offsetMs -= 100; ls.set('lyricOffset', String(offsetMs));
+    say(`Söz senkronu: ${offsetMs > 0 ? '+' : ''}${offsetMs} ms`, 1800);
+  } else if (e.key === 'r' || e.key === 'R') {
+    offsetMs = DEFAULT_OFFSET; ls.set('lyricOffset', String(DEFAULT_OFFSET));
+    say(`Söz senkronu varsayılana döndü (+${DEFAULT_OFFSET} ms)`, 1800);
+  } else if (e.key === 'c' || e.key === 'C') {
+    showMap = !showMap; ls.set('showMap', showMap ? '1' : '0');
+    say(showMap ? 'Gökyüzü haritası açık' : 'Gökyüzü haritası kapalı', 1800);
+  } else if (e.key === 'h' || e.key === 'H') {
+    document.body.classList.toggle('zen');
+    say(document.body.classList.contains('zen') ? 'Saf tuval modu (H ile geri dön)' : 'Arayüz görünür', 1800);
+  }
+});
+
+/* =========================================================
+   Media Session & Wake Lock
+   ========================================================= */
+function updateMediaSession(item) {
+  if (!('mediaSession' in navigator) || !('MediaMetadata' in window)) return;
+  try {
+    const artists = (item.artists ?? []).map(a => a.name).join(', ');
+    const imgs = item.album?.images || item.show?.images || [];
+    navigator.mediaSession.metadata = new MediaMetadata({
+      title: item.name || '',
+      artist: artists || item.show?.publisher || '',
+      album: item.album?.name || item.show?.name || '',
+      artwork: imgs.slice(0, 3).map(i => ({
+        src: i.url, sizes: `${i.width}x${i.height}`, type: 'image/jpeg'
+      }))
+    });
+  } catch (e) {}
+}
+
+if ('mediaSession' in navigator) {
+  const h = (name, fn) => { try { navigator.mediaSession.setActionHandler(name, fn); } catch {} };
+  h('play', () => { if (!S.playing) ctl('toggle'); });
+  h('pause', () => { if (S.playing) ctl('toggle'); });
+  h('nexttrack', () => ctl('next'));
+  h('previoustrack', () => ctl('prev'));
+  h('seekto', d => { if (d.seekTime != null && S.dur) ctl('seek', d.seekTime * 1000); });
+}
+
+let wakeLock = null;
+async function requestWakeLock() {
+  if (!('wakeLock' in navigator)) return;
+  try {
+    wakeLock = await navigator.wakeLock.request('screen');
+    wakeLock.addEventListener('release', () => { wakeLock = null; });
+  } catch {}
+}
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden) {
+    lastNow = performance.now();
+    requestWakeLock();
+    poll();
+  }
+});
+
+/* =========================================================
+   Etkileşim
+   ========================================================= */
+let idleT, mx = 0, my = 0, tx = 0, ty = 0;
+const sparks = [];
+document.body.classList.add('idle');
+addEventListener('mousemove', e => {
+  tx = e.clientX / innerWidth * 2 - 1;
+  ty = e.clientY / innerHeight * 2 - 1;
+  if (Math.random() < 0.45 && sparks.length < 40) {
+    sparks.push({
+      x: e.clientX * D, y: e.clientY * D,
+      vx: (Math.random() - .5) * .6 * D, vy: (Math.random() - .5) * .6 * D - .2 * D,
+      life: 1, sz: (.8 + Math.random() * 1.4) * D
+    });
+  }
+  document.body.classList.remove('idle');
+  clearTimeout(idleT);
+  idleT = setTimeout(() => document.body.classList.add('idle'), 3000);
+});
+
+let lastPlaying = null;
+const ICON_PLAY = '<svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>';
+const ICON_PAUSE = '<svg viewBox="0 0 24 24"><path d="M6 5h4v14H6zM14 5h4v14h-4z"/></svg>';
+
+/* =========================================================
+   Saat
+   ========================================================= */
+function tick() {
+  const d = new Date();
+  const day = d.toLocaleDateString('en-US', { weekday: 'short' }).toLowerCase();
+  const rest = d.toLocaleDateString('en-US', { day: 'numeric', month: 'short' }).toLowerCase();
+  $('date').textContent = `${day} · ${rest}`;
+  $('time').textContent = d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+}
+tick(); setInterval(tick, 1000);
+
+/* =========================================================
+   Canvas
+   ========================================================= */
+const cv = $('c'), g = cv.getContext('2d');
+let W, H, D, U;
+function fit() {
+  D = Math.min(devicePixelRatio || 1, 2);
+  W = cv.width = innerWidth * D;
+  H = cv.height = innerHeight * D;
+  U = Math.min(W / 1920, H / 1080) * 1.15;
+  if (innerWidth < 768) U = (H / 1080) * 0.95;
+}
+fit();
+addEventListener('resize', () => { fit(); sparks.length = 0; });
+
+const rng = seed => () => {
+  seed |= 0; seed = seed + 0x6D2B79F5 | 0;
+  let t = Math.imul(seed ^ seed >>> 15, 1 | seed);
+  t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+  return ((t ^ t >>> 14) >>> 0) / 4294967296;
+};
+const clamp = (v, a = 0, b = 1) => Math.min(b, Math.max(a, v));
+const ease = x => 1 - Math.pow(1 - x, 3);
+
+let BG = [];
+let skySeed = 7;
+function rebuildBG() {
+  const r = rng(skySeed);
+  const count = innerWidth < 768 ? 400 : 900;
+  BG = Array.from({ length: count }, () => ({
+    x: r(), y: r(), z: r(), p: r() * 6.28, s: r(), warm: r() > 0.78
+  }));
+}
+rebuildBG();
+
+const archiveStars = [];
+const recordedLines = new Set();
+
+const shootingStars = [];
+let nextShootAt = performance.now() + 9000;
+function spawnShootingStar(gentle = false) {
+  const startX = (0.15 + Math.random() * 0.7) * W;
+  const startY = (0.08 + Math.random() * 0.35) * H;
+  const angle = Math.PI * (0.16 + Math.random() * 0.14);
+  const speed = (gentle ? 14 : 20) * D;
+  shootingStars.push({
+    x: startX, y: startY,
+    vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed,
+    life: 1, len: (gentle ? 90 : 140) * D
+  });
+}
+
+const cache = new Map();
+function layout(i, line) {
+  if (cache.has(i)) return cache.get(i);
+  const r = rng(i * 7919 + 13), n = line.w.length, flip = r() > .5;
+  const nodes = line.w.map((w, k) => {
+    let x = .15 + .70 * ((k + .2 + r() * .6) / n);
+    if (flip) x = 1 - x;
+    const band = (k % 3) * 0.11;
+    return { w, x, y: .36 + band + (.11 * r()), alignRight: x > 0.78, tier: k % 3 };
+  });
+  cache.set(i, nodes);
+  if (cache.size > 16) cache.delete(cache.keys().next().value);
+  return nodes;
+}
+
+function recordArchive(i, line) {
+  if (recordedLines.has(i)) return;
+  recordedLines.add(i);
+  const nodes = layout(i, line);
+  archiveStars.push(nodes.map(nd => ({ x: nd.x, y: nd.y })));
+  if (archiveStars.length > 50) archiveStars.shift();
+}
+
+function drawArchive() {
+  if (!showMap || !archiveStars.length) return;
+  g.save();
+  g.strokeStyle = 'rgba(255,246,222,0.065)';
+  g.lineWidth = 0.9 * D;
+  g.fillStyle = 'rgba(255,248,230,0.22)';
+  let prevEnd = null;
+  for (const pts of archiveStars) {
+    if (!pts.length) continue;
+    if (prevEnd) {
+      g.beginPath();
+      g.moveTo(prevEnd.x * W + mx * 20 * D, prevEnd.y * H + my * 14 * D);
+      g.lineTo(pts[0].x * W + mx * 20 * D, pts[0].y * H + my * 14 * D);
+      g.stroke();
+    }
+    for (let k = 0; k < pts.length; k++) {
+      const px = pts[k].x * W + mx * 20 * D;
+      const py = pts[k].y * H + my * 14 * D;
+      if (k > 0) {
+        const lx = pts[k - 1].x * W + mx * 20 * D;
+        const ly = pts[k - 1].y * H + my * 14 * D;
+        g.beginPath(); g.moveTo(lx, ly); g.lineTo(px, py); g.stroke();
+      }
+      g.beginPath(); g.arc(px, py, 1.5 * D, 0, 6.283); g.fill();
+    }
+    prevEnd = pts[pts.length - 1];
+  }
+  g.restore();
+}
+
+function glint(x, y, s, a) {
+  g.strokeStyle = `rgba(255,248,230,${a})`;
+  g.lineWidth = 1 * D;
+  g.beginPath();
+  g.moveTo(x - s, y); g.lineTo(x + s, y);
+  g.moveTo(x, y - s); g.lineTo(x, y + s);
+  g.stroke();
+}
+
+let starDrift = 0, lastNow = performance.now();
+function drawBG(now) {
+  const dt = Math.min(50, Math.max(0, now - lastNow));
+  lastNow = now;
+  starDrift += dt * (S.playing ? 0.0045 : 0.0012);
+
+  if (now > nextShootAt) {
+    if (S.playing) spawnShootingStar(false);
+    else if (Math.random() < 0.3) spawnShootingStar(true);
+    nextShootAt = now + 14000 + Math.random() * 18000;
+  }
+
+  for (const s of BG) {
+    const tw = .5 + .5 * Math.sin(now * .0009 * (.4 + s.z) + s.p);
+    const a = (.12 + .55 * tw) * (.25 + s.z * .75);
+    const x = ((s.x * W + starDrift * D * (.3 + s.z) + mx * 16 * D * s.z) % W + W) % W;
+    const y = ((s.y * H + my * 12 * D * s.z) % H + H) % H;
+    const sz = (.55 + s.z * 1.25) * D;
+    g.fillStyle = s.warm ? `rgba(255,242,218,${a})` : `rgba(232,238,255,${a})`;
+    g.fillRect(x, y, sz, sz);
+    if (s.s > .984 && s.z > .6) glint(x, y, 5 * D * tw + 2 * D, a * .85);
+  }
+
+  for (let i = shootingStars.length - 1; i >= 0; i--) {
+    const st = shootingStars[i];
+    st.x += st.vx; st.y += st.vy; st.life -= 0.018;
+    if (st.life <= 0) { shootingStars.splice(i, 1); continue; }
+    const norm = Math.hypot(st.vx, st.vy) || 1;
+    const tx0 = st.x - (st.vx / norm) * st.len * st.life;
+    const ty0 = st.y - (st.vy / norm) * st.len * st.life;
+    const grad = g.createLinearGradient(tx0, ty0, st.x, st.y);
+    grad.addColorStop(0, 'rgba(255,248,230,0)');
+    grad.addColorStop(1, `rgba(255,248,230,${st.life * 0.75})`);
+    g.strokeStyle = grad; g.lineWidth = 1.4 * D;
+    g.beginPath(); g.moveTo(tx0, ty0); g.lineTo(st.x, st.y); g.stroke();
+    g.fillStyle = `rgba(255,250,238,${st.life})`;
+    g.beginPath(); g.arc(st.x, st.y, 1.8 * D, 0, 6.283); g.fill();
+  }
+
+  for (let i = sparks.length - 1; i >= 0; i--) {
+    const sp = sparks[i];
+    sp.x += sp.vx; sp.y += sp.vy; sp.life -= 0.022;
+    if (sp.life <= 0) { sparks.splice(i, 1); continue; }
+    g.fillStyle = `rgba(255,246,220,${sp.life * 0.55})`;
+    g.beginPath(); g.arc(sp.x, sp.y, sp.sz * sp.life, 0, 6.283); g.fill();
+  }
+}
+
+function lineAlpha(i, t) {
+  const l = S.lines[i]; if (!l) return 0;
+  const nx = S.lines[i + 1];
+  const dur = (nx ? nx.t : l.t + 5000) - l.t;
+  return 1 - clamp((t - (l.t + Math.min(dur, 6000))) / 900);
+}
+
+function drawLine(i, t, alpha, now) {
+  const line = S.lines[i]; if (!line) return;
+  const nx = S.lines[i + 1];
+  const dur = Math.max(1200, (nx ? nx.t : line.t + 4000) - line.t);
+  const nodes = layout(i, line), n = nodes.length;
+  const step = Math.min(dur * .7, n * 520) / n;
+
+  const P = nodes.map((nd, k) => ({
+    x: nd.x * W + mx * 20 * D,
+    y: nd.y * H + my * 14 * D,
+    p: ease(clamp((t - line.t - k * step) / 650)),
+    w: nd.w,
+    alignRight: nd.alignRight,
+    tier: nd.tier
+  }));
+
+  if (P.some(q => q.p > 0.25)) recordArchive(i, line);
+
+  // En yeni (aktif) düğümü önceden hesapla
+  let newest = -1;
+  for (let k = 0; k < P.length; k++) if (P[k].p > 0) newest = k;
+
+  g.globalAlpha = alpha;
+
+  // 1) Bağlantı çizgileri (glow)
+  g.strokeStyle = 'rgba(255,248,230,.62)';
+  g.lineWidth = 1.4 * D;
+  g.shadowColor = 'rgba(255,244,214,.8)';
+  g.shadowBlur = 8 * D;
+  const seg = (a, b, p) => {
+    if (p <= 0) return;
+    g.beginPath();
+    g.moveTo(a.x, a.y);
+    g.lineTo(a.x + (b.x - a.x) * p, a.y + (b.y - a.y) * p);
+    g.stroke();
+  };
+  for (let k = 1; k < n; k++) seg(P[k - 1], P[k], P[k].p);
+  if (n >= 4) seg(P[n - 1], P[Math.floor(n / 3)], P[n - 1].p);
+
+  // 2) Düğüm daireleri
+  g.fillStyle = '#fff8e8';
+  g.shadowBlur = 16 * D;
+  for (const q of P) {
+    if (q.p <= 0) continue;
+    g.globalAlpha = alpha * q.p;
+    g.beginPath();
+    g.arc(q.x, q.y, (2.6 + (1 - q.p) * 5) * U, 0, 6.283);
+    g.fill();
+  }
+
+  // 3) Glint'ler
+  g.shadowBlur = 0;
+  for (const q of P) {
+    if (q.p <= 0) continue;
+    g.globalAlpha = alpha * q.p;
+    glint(q.x, q.y, 9 * U * q.p, .55);
+  }
+
+  // 4) Metinler — aktif kelime hafifçe vurgulu, öncekiler hafif soluk
+  const fontSize = Math.round(28 * U);
+  g.font = `italic ${fontSize}px 'Cormorant Garamond',Georgia,serif`;
+  g.shadowColor = 'rgba(255,244,214,.65)';
+  const margin = 40 * U;
+  for (let k = 0; k < P.length; k++) {
+    const q = P[k];
+    if (q.p <= 0) continue;
+    const isNewest = k === newest && q.p > 0.9;
+    g.globalAlpha = alpha * q.p * (isNewest ? 1 : 0.92);
+    g.fillStyle = isNewest ? 'rgba(255,250,235,1)' : 'rgba(245,238,222,.94)';
+    g.shadowBlur = (isNewest ? 16 : 12) * D;
+    const tw = g.measureText(q.w).width;
+    let alignRight = q.alignRight;
+    if (!alignRight && q.x + 14 * U + tw > W - margin) alignRight = true;
+    if (alignRight && q.x - 14 * U - tw < margin) alignRight = false;
+    const txOffset = (alignRight ? -14 : 14) * U;
+    const tyOffset = (q.tier === 0 ? -18 : q.tier === 1 ? 30 : -34) * U;
+    g.textAlign = alignRight ? 'right' : 'left';
+    g.fillText(q.w, q.x + txOffset, q.y + tyOffset);
+  }
+
+  // 5) Aktif düğüm için halka + büyük glint (albüm rengine hafif tint)
+  if (newest >= 0 && alpha > .2) {
+    const q = P[newest];
+    g.globalAlpha = alpha * q.p;
+    g.shadowBlur = 0;
+    if (accent) {
+      const mix = 0.35;
+      g.strokeStyle = `rgba(${Math.round(accent.r * mix + 255 * (1 - mix))},${Math.round(accent.g * mix + 248 * (1 - mix))},${Math.round(accent.b * mix + 230 * (1 - mix))},.75)`;
+    } else {
+      g.strokeStyle = 'rgba(255,248,230,.75)';
+    }
+    g.lineWidth = 1.2 * D;
+    g.save();
+    g.translate(q.x, q.y);
+    g.rotate(now * .0004);
+    g.setLineDash([6 * U, 5 * U]);
+    g.beginPath();
+    g.arc(0, 0, 24 * U, 0, 6.283);
+    g.stroke();
+    g.restore();
+    g.setLineDash([]);
+    glint(q.x, q.y, 36 * U, .5);
+  }
+
+  g.globalAlpha = 1;
+  g.shadowBlur = 0;
+  g.textAlign = 'left';
+}
+
+function drawFrame(now) {
+  const m = 26 * U, x0 = m, y0 = m, x1 = W - m, y1 = H - m, r = 30 * U, cx = W / 2;
+  const nw = 150 * U, nd = 26 * U, nr = 12 * U;
+
+  g.beginPath();
+  g.moveTo(x0 + r, y0);
+  g.lineTo(cx - nw / 2 - nr, y0);
+  g.quadraticCurveTo(cx - nw / 2, y0, cx - nw / 2, y0 + nr);
+  g.quadraticCurveTo(cx - nw / 2, y0 + nd, cx - nw / 2 + nr, y0 + nd);
+  g.lineTo(cx + nw / 2 - nr, y0 + nd);
+  g.quadraticCurveTo(cx + nw / 2, y0 + nd, cx + nw / 2, y0 + nr);
+  g.quadraticCurveTo(cx + nw / 2, y0, cx + nw / 2 + nr, y0);
+  g.lineTo(x1 - r, y0);
+  g.arcTo(x1, y0, x1, y0 + r, r);
+  g.arcTo(x1, y1, x1 - r, y1, r);
+  g.arcTo(x0, y1, x0, y1 - r, r);
+  g.arcTo(x0, y0, x0 + r, y0, r);
+  g.closePath();
+
+  const pulseRate = S.playing ? .0012 : .0006;
+  const pulse = .85 + .15 * Math.sin(now * pulseRate);
+
+  // Ana çizgi (albüm rengine %40 tint)
+  if (accent) {
+    const mix = 0.4;
+    const r2 = Math.round(accent.r * mix + 255 * (1 - mix));
+    const g2 = Math.round(accent.g * mix + 246 * (1 - mix));
+    const b2 = Math.round(accent.b * mix + 222 * (1 - mix));
+    g.strokeStyle = `rgba(${r2},${g2},${b2},${.9 * pulse})`;
+  } else {
+    g.strokeStyle = `rgba(255,246,222,${.9 * pulse})`;
+  }
+  g.lineWidth = 3 * U;
+  g.shadowColor = 'rgba(255,240,205,.9)';
+  g.shadowBlur = 38 * U;
+  g.stroke();
+
+  g.shadowBlur = 90 * U;
+  g.globalAlpha = .35;
+  g.stroke();
+  g.globalAlpha = 1;
+  g.shadowBlur = 0;
+
+  // Köşelerde minik takımyıldız noktaları
+  const pad = r * 0.55;
+  g.fillStyle = `rgba(255,246,222,${.35 * pulse})`;
+  for (const [dx, dy] of [[pad, pad], [-pad, pad], [pad, -pad], [-pad, -pad]]) {
+    const px = (dx > 0 ? x0 + dx : x1 + dx);
+    const py = (dy > 0 ? y0 + dy : y1 + dy);
+    g.beginPath();
+    g.arc(px, py, 1.2 * U, 0, 6.283);
+    g.fill();
+  }
+}
+
+function frame(now) {
+  mx += (tx - mx) * .05;
+  my += (ty - my) * .05;
+  g.clearRect(0, 0, W, H);
+  drawBG(now);
+  drawArchive();
+
+  const t = pos();
+  let i = -1;
+  for (let k = 0; k < S.lines.length; k++) {
+    if (S.lines[k].t <= t) i = k;
+    else break;
+  }
+  for (const k of [i - 1, i]) {
+    if (k < 0) continue;
+    const a = lineAlpha(k, t);
+    if (a > .01) drawLine(k, t, a, now);
+  }
+
+  drawFrame(now);
+
+  // İlerleme & zaman etiketleri
+  const displayPos = dragPos != null ? dragPos : rawPos();
+  const pct = S.dur > 0 ? clamp(displayPos / S.dur, 0, 1) * 100 : 0;
+  if (!dragging) {
+    $('progFill').style.width = pct.toFixed(1) + '%';
+    $('progDot').style.left = pct.toFixed(1) + '%';
+    $('tElapsed').textContent = fmtTime(displayPos);
+    $('tLeft').textContent = '-' + fmtTime(S.dur - displayPos);
+  }
+  const pb = $('progBar');
+  const nowVal = String(Math.round(pct));
+  if (pb.getAttribute('aria-valuenow') !== nowVal) pb.setAttribute('aria-valuenow', nowVal);
+
+  if (S.playing !== lastPlaying) {
+    lastPlaying = S.playing;
+    $('pp').innerHTML = S.playing ? ICON_PAUSE : ICON_PLAY;
+    document.body.classList.toggle('playing', S.playing);
+  }
+
+  const metaEl = $('meta');
+  if (now < noteUntil) {
+    if (metaEl.textContent !== note) metaEl.textContent = note;
+  } else if (baseMeta && metaEl.textContent !== baseMeta) {
+    metaEl.textContent = baseMeta;
+  }
+
+  requestAnimationFrame(frame);
+}
+
+/* =========================================================
+   Başlat
+   ========================================================= */
+(async () => {
+  requestWakeLock();
+  if (bc) bc.postMessage({ type: 'hello' });
+  setInterval(poll, 2000);
+  await electLeader();
+  if (isLeader) poll();
+})();
+
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
