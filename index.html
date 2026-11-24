@@ -159,7 +159,7 @@ const ls = {
 };
 
 const CLIENT_ID = '5a940233d413441f93cd756d90c2c3a3';
-const REDIRECT = location.origin + location.pathname;
+const REDIRECT = 'https://emreww.github.io/constellation/';
 const SCOPE = 'user-read-currently-playing user-read-playback-state user-modify-playback-state';
 const DEFAULT_OFFSET = 250;
 
@@ -431,7 +431,6 @@ async function onNewTrack(it) {
   rebuildBG();
   spawnShootingStar(true);
 
-  // Accent reset + fetch
   applyAccent(null);
   const coverUrl = it.album?.images?.[0]?.url || it.show?.images?.[0]?.url;
   if (coverUrl) {
@@ -561,7 +560,6 @@ const fmtTime = ms => {
   return `${m}:${String(s).padStart(2, '0')}`;
 };
 
-/* Sürükle-bırak seek */
 let dragging = false;
 let dragPos = null;
 
@@ -905,13 +903,11 @@ function drawLine(i, t, alpha, now) {
 
   if (P.some(q => q.p > 0.25)) recordArchive(i, line);
 
-  // En yeni (aktif) düğümü önceden hesapla
   let newest = -1;
   for (let k = 0; k < P.length; k++) if (P[k].p > 0) newest = k;
 
   g.globalAlpha = alpha;
 
-  // 1) Bağlantı çizgileri (glow)
   g.strokeStyle = 'rgba(255,248,230,.62)';
   g.lineWidth = 1.4 * D;
   g.shadowColor = 'rgba(255,244,214,.8)';
@@ -926,7 +922,6 @@ function drawLine(i, t, alpha, now) {
   for (let k = 1; k < n; k++) seg(P[k - 1], P[k], P[k].p);
   if (n >= 4) seg(P[n - 1], P[Math.floor(n / 3)], P[n - 1].p);
 
-  // 2) Düğüm daireleri
   g.fillStyle = '#fff8e8';
   g.shadowBlur = 16 * D;
   for (const q of P) {
@@ -937,7 +932,6 @@ function drawLine(i, t, alpha, now) {
     g.fill();
   }
 
-  // 3) Glint'ler
   g.shadowBlur = 0;
   for (const q of P) {
     if (q.p <= 0) continue;
@@ -945,7 +939,6 @@ function drawLine(i, t, alpha, now) {
     glint(q.x, q.y, 9 * U * q.p, .55);
   }
 
-  // 4) Metinler — aktif kelime hafifçe vurgulu, öncekiler hafif soluk
   const fontSize = Math.round(28 * U);
   g.font = `italic ${fontSize}px 'Cormorant Garamond',Georgia,serif`;
   g.shadowColor = 'rgba(255,244,214,.65)';
@@ -967,7 +960,6 @@ function drawLine(i, t, alpha, now) {
     g.fillText(q.w, q.x + txOffset, q.y + tyOffset);
   }
 
-  // 5) Aktif düğüm için halka + büyük glint (albüm rengine hafif tint)
   if (newest >= 0 && alpha > .2) {
     const q = P[newest];
     g.globalAlpha = alpha * q.p;
@@ -1018,7 +1010,6 @@ function drawFrame(now) {
   const pulseRate = S.playing ? .0012 : .0006;
   const pulse = .85 + .15 * Math.sin(now * pulseRate);
 
-  // Ana çizgi (albüm rengine %40 tint)
   if (accent) {
     const mix = 0.4;
     const r2 = Math.round(accent.r * mix + 255 * (1 - mix));
@@ -1039,7 +1030,6 @@ function drawFrame(now) {
   g.globalAlpha = 1;
   g.shadowBlur = 0;
 
-  // Köşelerde minik takımyıldız noktaları
   const pad = r * 0.55;
   g.fillStyle = `rgba(255,246,222,${.35 * pulse})`;
   for (const [dx, dy] of [[pad, pad], [-pad, pad], [pad, -pad], [-pad, -pad]]) {
@@ -1072,7 +1062,6 @@ function frame(now) {
 
   drawFrame(now);
 
-  // İlerleme & zaman etiketleri
   const displayPos = dragPos != null ? dragPos : rawPos();
   const pct = S.dur > 0 ? clamp(displayPos / S.dur, 0, 1) * 100 : 0;
   if (!dragging) {
